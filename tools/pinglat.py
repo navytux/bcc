@@ -60,14 +60,14 @@ prog += r"""
     int z=0; struct event zev = {};
 
     struct event *ev = event.lookup_or_init(&z, &zev);
-    if (ev->tint != 0) {
-        // interrupt came but icmp_echo not yet handled
-        ev->nint++;
-        return 0;
-    }
+    //if (ev->tint != 0) {
+    //    // interrupt came but icmp_echo not yet handled
+    //    ev->nint++;
+    //    return 0;
+    //}
 
-    ev->tint = ts;
-    ev->nint = 1;
+    ev->tint = ts;  // t of _last_ interrupt
+    ev->nint++;     // verifying it is sane (e.g. =2 means TXintr RXintr icmp_echo icmp_reply TXintr RXintr ...
 
     //bpf_trace_printk("interrupt: %s\n", irqname);
     return 0;
