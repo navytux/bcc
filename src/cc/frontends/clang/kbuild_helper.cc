@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 #include <fcntl.h>
-#include <ftw.h>
+#include <stdlib.h>
+#include <iostream>
 #include "kbuild_helper.h"
 
 namespace ebpf {
@@ -33,26 +34,33 @@ int KBuildHelper::get_flags(const char *uname_machine, vector<string> *cflags) {
   //               -e s/ppc.*/powerpc/ -e s/mips.*/mips/ -e s/sh[234].*/sh/
   //               -e s/aarch64.*/arm64/
 
-  string arch = uname_machine;
-  if (!strncmp(uname_machine, "x86_64", 6)) {
+  string arch;
+  const char *archenv = getenv("ARCH");
+  // If ARCH env is defined, use it over uname
+  if (archenv)
+    arch = string(archenv);
+  else
+    arch = string(uname_machine);
+
+  if (!arch.compare(0, 6, "x86_64")) {
     arch = "x86";
-  } else if (uname_machine[0] == 'i' && !strncmp(&uname_machine[2], "86", 2)) {
+  } else if (arch[0] == 'i' && !arch.compare(2, 2, "86")) {
     arch = "x86";
-  } else if (!strncmp(uname_machine, "arm", 3)) {
+  } else if (!arch.compare(0, 3, "arm")) {
     arch = "arm";
-  } else if (!strncmp(uname_machine, "sa110", 5)) {
+  } else if (!arch.compare(0, 5, "sa110")) {
     arch = "arm";
-  } else if (!strncmp(uname_machine, "s390x", 5)) {
+  } else if (!arch.compare(0, 5, "s390x")) {
     arch = "s390";
-  } else if (!strncmp(uname_machine, "parisc64", 8)) {
+  } else if (!arch.compare(0, 8, "parisc64")) {
     arch = "parisc";
-  } else if (!strncmp(uname_machine, "ppc", 3)) {
+  } else if (!arch.compare(0, 3, "ppc")) {
     arch = "powerpc";
-  } else if (!strncmp(uname_machine, "mips", 4)) {
+  } else if (!arch.compare(0, 4, "mips")) {
     arch = "mips";
-  } else if (!strncmp(uname_machine, "sh", 2)) {
+  } else if (!arch.compare(0, 2, "sh")) {
     arch = "sh";
-  } else if (!strncmp(uname_machine, "aarch64", 7)) {
+  } else if (!arch.compare(0, 7, "aarch64")) {
     arch = "arm64";
   }
 
@@ -87,6 +95,11 @@ int KBuildHelper::get_flags(const char *uname_machine, vector<string> *cflags) {
   cflags->push_back("-D__HAVE_BUILTIN_BSWAP16__");
   cflags->push_back("-D__HAVE_BUILTIN_BSWAP32__");
   cflags->push_back("-D__HAVE_BUILTIN_BSWAP64__");
+
+  // If ARCH env variable is set, pass this along.
+  if (archenv)
+	cflags->push_back("-D__TARGET_ARCH_" + arch);
+
   cflags->push_back("-Wno-unused-value");
   cflags->push_back("-Wno-pointer-sign");
   cflags->push_back("-fno-stack-protector");

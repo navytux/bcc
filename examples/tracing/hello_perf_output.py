@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 #
 # This is a Hello World example that uses BPF_PERF_OUTPUT.
 
@@ -32,7 +32,7 @@ int hello(struct pt_regs *ctx) {
 
 # load BPF program
 b = BPF(text=prog)
-b.attach_kprobe(event="sys_clone", fn_name="hello")
+b.attach_kprobe(event=b.get_syscall_fnname("clone"), fn_name="hello")
 
 # define output data structure in Python
 TASK_COMM_LEN = 16    # linux/sched.h
@@ -58,4 +58,7 @@ def print_event(cpu, data, size):
 # loop with callback to print_event
 b["events"].open_perf_buffer(print_event)
 while 1:
-    b.kprobe_poll()
+    try:
+        b.perf_buffer_poll()
+    except KeyboardInterrupt:
+        exit()

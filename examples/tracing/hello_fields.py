@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 #
 # This is a Hello World example that formats output as fields.
 
@@ -14,7 +14,7 @@ int hello(void *ctx) {
 
 # load BPF program
 b = BPF(text=prog)
-b.attach_kprobe(event="sys_clone", fn_name="hello")
+b.attach_kprobe(event=b.get_syscall_fnname("clone"), fn_name="hello")
 
 # header
 print("%-18s %-16s %-6s %s" % ("TIME(s)", "COMM", "PID", "MESSAGE"))

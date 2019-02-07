@@ -52,7 +52,7 @@ struct data_t {
     char comm[TASK_COMM_LEN];
 };
 
-BPF_STACK_TRACE(stack_traces, 128)
+BPF_STACK_TRACE(stack_traces, 128);
 BPF_PERF_OUTPUT(events);
 
 void trace_stack(struct pt_regs *ctx) {
@@ -120,4 +120,7 @@ def print_event(cpu, data, size):
 
 b["events"].open_perf_buffer(print_event)
 while 1:
-    b.kprobe_poll()
+    try:
+        b.perf_buffer_poll()
+    except KeyboardInterrupt:
+        exit()

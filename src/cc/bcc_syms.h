@@ -21,6 +21,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
+#include "linux/bpf.h"
 
 struct bcc_symbol {
   const char *name;
@@ -34,6 +35,13 @@ typedef int (*SYM_CB)(const char *symname, uint64_t addr);
 #ifndef STT_GNU_IFUNC
 #define STT_GNU_IFUNC 10
 #endif
+
+#if defined(__powerpc64__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+// Indicate if the Local Entry Point (LEP) should be used as a symbol's
+// start address
+#define STT_PPC64LE_SYM_LEP 31
+#endif
+
 static const uint32_t BCC_SYM_ALL_TYPES = 65535;
 struct bcc_symbol_option {
   int use_debug_file;
@@ -60,6 +68,13 @@ void bcc_symcache_refresh(void *resolver);
 int bcc_resolve_global_addr(int pid, const char *module, const uint64_t address,
                             uint64_t *global);
 
+/*bcc APIs for build_id stackmap support*/
+void *bcc_buildsymcache_new(void);
+void bcc_free_buildsymcache(void *symcache);
+int  bcc_buildsymcache_add_module(void *resolver, const char *module_name);
+int bcc_buildsymcache_resolve(void *resolver,
+                              struct bpf_stack_build_id *trace,
+                              struct bcc_symbol *sym);
 // Call cb on every function symbol in the specified module. Uses simpler
 // SYM_CB callback mainly for easier to use in Python API.
 // Will prefer use debug file and check debug file CRC when reading the module.

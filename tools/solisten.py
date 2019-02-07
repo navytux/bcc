@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 #
 # solisten      Trace TCP listen events
 #               For Linux, uses BCC, eBPF. Embedded C.
@@ -6,7 +6,7 @@
 # USAGE: solisten.py [-h] [-p PID] [--show-netns]
 #
 # This is provided as a basic example of TCP connection & socket tracing.
-# It could be usefull in scenarios where load balancers needs to be updated
+# It could be useful in scenarios where load balancers needs to be updated
 # dynamically as application is fully initialized.
 #
 # All IPv4 listen attempts are traced, even if they ultimately fail or the
@@ -23,6 +23,7 @@ from struct import pack
 import argparse
 from bcc import BPF
 import ctypes as ct
+from bcc.utils import printb
 
 # Arguments
 examples = """Examples:
@@ -42,14 +43,18 @@ parser.add_argument("-p", "--pid", default=0, type=int,
     help="trace this PID only")
 parser.add_argument("-n", "--netns", default=0, type=int,
     help="trace this Network Namespace only")
+parser.add_argument("--ebpf", action="store_true",
+    help=argparse.SUPPRESS)
 
 
 # BPF Program
 bpf_text = """
-#include <net/sock.h>
-#include <net/inet_sock.h>
 #include <net/net_namespace.h>
 #include <bcc/proto.h>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wenum-conversion"
+#include <net/inet_sock.h>
+#pragma clang diagnostic pop
 
 // Common structure for UDP/TCP IPv4/IPv6
 struct listen_evt_t {
@@ -106,7 +111,6 @@ int kprobe__inet_listen(struct pt_regs *ctx, struct socket *sock, int backlog)
         // Get IP
         if (family == AF_INET) {
             evt.laddr[0] = inet->inet_rcv_saddr;
-            evt.laddr[0] = be32_to_cpu(evt.laddr[0]);
         } else if (family == AF_INET6) {
             bpf_probe_read(evt.laddr, sizeof(evt.laddr),
                            sk->__sk_common.skc_v6_rcv_saddr.in6_u.u6_addr32);
@@ -162,12 +166,12 @@ def event_printer(show_netns):
 
         # Display
         if show_netns:
-            print("%-6d %-12.12s %-12s %-6s %-8s %-5s %-39s" % (
+            printb(b"%-6d %-12.12s %-12s %-6s %-8s %-5s %-39s" % (
                 pid, event.task, event.netns, protocol, event.backlog,
                 event.lport, address,
             ))
         else:
-            print("%-6d %-12.12s %-6s %-8s %-5s %-39s" % (
+            printb(b"%-6d %-12.12s %-6s %-8s %-5s %-39s" % (
                 pid, event.task, protocol, event.backlog,
                 event.lport, address,
             ))
@@ -189,6 +193,10 @@ if __name__ == "__main__":
     bpf_text = bpf_text.replace("##FILTER_PID##", pid_filter)
     bpf_text = bpf_text.replace("##FILTER_NETNS##", netns_filter)
 
+    if args.ebpf:
+        print(bpf_text)
+        exit()
+
     # Initialize BPF
     b = BPF(text=bpf_text)
     b["listen_evt"].open_perf_buffer(event_printer(args.show_netns))
@@ -203,4 +211,7 @@ if __name__ == "__main__":
 
     # Read events
     while 1:
-        b.kprobe_poll()
+        try:
+            b.perf_buffer_poll()
+        except KeyboardInterrupt:
+            exit()
