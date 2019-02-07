@@ -9,6 +9,8 @@ ifname="eth0"
 
 prog = r"""
 #include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/irqdesc.h>
 #include <linux/icmp.h>
 
 // event represents 1 INTR->icmp_echo->icmp_reply event
